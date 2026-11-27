@@ -1,0 +1,419 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HookLab · Hook & Cliffhanger Retention Analyzer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#e9edf3; --surface:#ffffff; --ink:#1a2233; --muted:#5b6578; --line:#d3d9e3;
+  --hot:#d1195f; --hot-soft:#fbe3ec; --good:#0b7d70; --warn:#b97800; --bad:#c42b3a;
+  --head:'Bricolage Grotesque','Arial Narrow',system-ui,sans-serif;
+  --body:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --script:'Courier Prime','Courier New',monospace;
+}
+*{box-sizing:border-box}
+html{color-scheme:light}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 var(--body)}
+h1,h2,h3{font-family:var(--head);margin:0;line-height:1.1}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--hot);outline-offset:2px}
+.top{padding:22px 28px 14px;display:flex;align-items:baseline;gap:18px;flex-wrap:wrap}
+.top h1{font-size:30px;font-weight:800;letter-spacing:-.02em}
+.top p{margin:0;color:var(--muted);max-width:60ch}
+#engine{margin-left:auto;font-size:13px;color:var(--muted)}
+.layout{display:grid;grid-template-columns:340px minmax(0,1fr);gap:22px;padding:0 28px 48px;align-items:start}
+@media(max-width:920px){.layout{grid-template-columns:1fr;padding:0 16px 40px}.top{padding:18px 16px 10px}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:18px}
+.panel+.panel{margin-top:18px}
+label{display:block;font-weight:600;font-size:13px;margin:12px 0 4px}
+input[type=text],select,textarea,input[type=number]{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:4px;background:#fff}
+textarea{min-height:150px;font-family:var(--script);font-size:13.5px;line-height:1.4;resize:vertical}
+input[type=file]{width:100%;font-size:13px}
+.hint{color:var(--muted);font-size:12.5px;margin:4px 0 0}
+.btn{border:0;border-radius:4px;padding:10px 16px;font-weight:600;cursor:pointer;background:var(--hot);color:#fff}
+.btn:hover{background:#b3114f}.btn[disabled]{opacity:.55;cursor:wait}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line);padding:6px 10px;font-size:13px}
+.btn.ghost:hover{background:var(--bg)}
+.err{margin-top:12px;padding:10px 12px;border-left:4px solid var(--bad);background:#fdecee;color:#7c1621;font-size:14px}
+.warn{margin:0 0 12px;padding:8px 12px;border-left:4px solid var(--warn);background:#fff6df;font-size:13.5px}
+.empty{padding:56px 24px;text-align:center;color:var(--muted)}
+.empty h2{font-size:22px;color:var(--ink);margin-bottom:8px}
+.verdict{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:14px}
+.verdict h2{font-size:26px;font-weight:800}
+.tag{font-size:12.5px;color:var(--muted)}
+.scores{display:grid;grid-template-columns:repeat(5,1fr);border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.score{padding:14px 14px 12px;border-right:1px solid var(--line)}
+.score:last-child{border-right:0}
+.score .k{font-size:12.5px;color:var(--muted)}
+.score .v{font-family:var(--head);font-size:34px;font-weight:800;line-height:1.1}
+.score .v small{font-size:14px;font-weight:600;color:var(--muted)}
+.meter{height:5px;background:var(--bg);border-radius:3px;margin-top:8px;overflow:hidden}
+.meter i{display:block;height:100%}
+@media(max-width:720px){.scores{grid-template-columns:repeat(2,1fr)}.score{border-bottom:1px solid var(--line)}}
+.sec{margin-top:26px}
+.sec>h3{font-size:19px;margin-bottom:10px;font-weight:800}
+.sec>p.sub{margin:-4px 0 10px;color:var(--muted);font-size:13.5px}
+.ribbon{width:100%;height:auto;display:block;background:var(--surface);border:1px solid var(--line);border-radius:6px}
+.ribbon text{font:600 11px var(--body);fill:var(--muted)}
+.zone{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;padding:10px 0;border-top:1px solid var(--line)}
+.zone:first-of-type{border-top:0}
+.zone .t{font:700 13px var(--script);white-space:nowrap}
+.zone .sev{font-size:12px;font-weight:700}
+.sev.high{color:var(--bad)}.sev.medium{color:var(--warn)}.sev.low{color:var(--muted)}
+.zone .fix{color:var(--muted);font-size:13.5px;grid-column:2}
+ul.fixes{margin:0;padding-left:18px}
+ul.fixes li{margin:4px 0}
+.rewrites{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+@media(max-width:1100px){.rewrites{grid-template-columns:1fr}}
+.rw{border:1px solid var(--line);border-top:4px solid var(--hot);border-radius:0 0 6px 6px;background:var(--surface);padding:14px;display:flex;flex-direction:column;gap:8px}
+.rw h4{margin:0;font:800 17px var(--head)}
+.rw h4 span{color:var(--hot);margin-right:8px}
+.rw pre{margin:0;white-space:pre-wrap;word-break:break-word;font:400 13px/1.45 var(--script);background:var(--bg);padding:10px;border-radius:4px}
+.rw p{margin:0;font-size:13.5px}
+.rw .m{color:var(--muted);font-size:12.5px}
+.ver{display:flex;justify-content:space-between;gap:8px;padding:8px 0;border-top:1px solid var(--line);font-size:13.5px;align-items:center}
+.ver:first-child{border-top:0}
+.ver button{all:unset;cursor:pointer;font-weight:600;text-decoration:underline;text-underline-offset:3px}
+.ver button:focus-visible{outline:3px solid var(--hot)}
+.ver .d{font:700 12.5px var(--script)}
+.up{color:var(--good)}.down{color:var(--bad)}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th,td{text-align:left;padding:7px 8px;border-top:1px solid var(--line);vertical-align:middle}
+th{font-size:12.5px;color:var(--muted);font-weight:600;border-top:0}
+td input{width:90px;padding:5px 7px}
+.num{font-variant-numeric:tabular-nums}
+.row{display:flex;gap:10px;align-items:end;flex-wrap:wrap;margin-top:10px}
+.row>div{flex:0 0 auto}
+.status{margin:12px 0 0;padding:10px 12px;border-left:4px solid var(--muted);background:var(--bg);font-size:14px}
+.status.winner{border-color:var(--good)}.status.inconclusive{border-color:var(--warn)}
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>HookLab</h1>
+  <p>Audit the first 5 seconds and the last 5 before you pay for production or ads.</p>
+  <span id="engine" role="status"></span>
+</header>
+
+<main class="layout">
+  <aside>
+    <form class="panel" id="form">
+      <h2 style="font-size:20px">Analyze an episode</h2>
+      <label for="episode">Episode</label>
+      <select id="episode"><option value="">New episode</option></select>
+      <label for="title">Title</label>
+      <input type="text" id="title" required maxlength="200" placeholder="The Billionaire's Secret Wife, Ep 12">
+      <label for="genre">Genre</label>
+      <select id="genre">
+        <option>romance</option><option>thriller</option><option>mythology</option>
+        <option>revenge</option><option>fantasy</option><option>general</option>
+      </select>
+      <label for="script_text">Script</label>
+      <textarea id="script_text" spellcheck="false" placeholder="MAYA: You lied to me. Who is Clara?&#10;DANIEL: Where did you hear that name?"></textarea>
+      <p class="hint">Or upload a script file (.txt, .md, .fountain, .pdf). A file replaces the pasted text.</p>
+      <input type="file" id="script" accept=".txt,.md,.fountain,.pdf" aria-label="Script file">
+      <label for="video">Rough cut (optional)</label>
+      <input type="file" id="video" accept=".mp4,.mov,.webm,.mkv,.m4v">
+      <p class="hint">Video frames are read by the multimodal model when an API key is set.</p>
+      <label style="display:flex;gap:8px;align-items:center;font-weight:500"><input type="checkbox" id="force"> Re-run even if this exact draft was already analyzed</label>
+      <div style="margin-top:14px"><button class="btn" id="go" type="submit">Analyze</button></div>
+      <div id="error" class="err" hidden role="alert"></div>
+    </form>
+    <section class="panel" id="history" hidden>
+      <h2 style="font-size:18px;margin-bottom:6px">Draft history</h2>
+      <div id="versions"></div>
+    </section>
+    <section class="panel">
+      <h2 style="font-size:18px">How many viewers do I need?</h2>
+      <div class="row">
+        <div><label for="ss_base" style="margin-top:0">Baseline rate</label><input type="number" id="ss_base" value="0.30" step="0.01" min="0.01" max="0.99" style="width:90px"></div>
+        <div><label for="ss_mde" style="margin-top:0">Lift to detect</label><input type="number" id="ss_mde" value="0.10" step="0.01" min="0.01" style="width:90px"></div>
+        <div><button class="btn ghost" id="ss_go" type="button">Calculate</button></div>
+      </div>
+      <p class="hint" id="ss_out">Relative lift, 95% confidence, 80% power.</p>
+    </section>
+  </aside>
+
+  <section id="results" aria-live="polite">
+    <div class="panel empty">
+      <h2>No episode analyzed yet</h2>
+      <p>Paste a script or upload a draft. You get scores, a drop-off timeline, and three hook rewrites ready for an A/B test.</p>
+    </div>
+  </section>
+</main>
+
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const SVGNS = "http://www.w3.org/2000/svg";
+let current = null;   // current version payload
+let experiment = null;
+
+function h(tag, attrs = {}, ...kids) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (v == null || v === false) continue;
+    if (k === "class") el.className = v;
+    else if (k.startsWith("on")) el.addEventListener(k.slice(2), v);
+    else if (k in el && k !== "list") el[k] = v;
+    else el.setAttribute(k, v);
+  }
+  for (const kid of kids.flat()) {
+    if (kid == null || kid === false) continue;
+    el.append(kid.nodeType ? kid : document.createTextNode(String(kid)));
+  }
+  return el;
+}
+function svg(tag, attrs = {}, text) {
+  const el = document.createElementNS(SVGNS, tag);
+  for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+  if (text != null) el.textContent = text;
+  return el;
+}
+async function api(path, opts) {
+  const res = await fetch(path, opts);
+  let body = null;
+  try { body = await res.json(); } catch (_) {}
+  if (!res.ok) {
+    let msg = body && body.detail;
+    if (Array.isArray(msg)) msg = msg.map((m) => m.msg).join("; ");
+    throw new Error(msg || `Request failed (${res.status})`);
+  }
+  return body;
+}
+const pct = (x) => (x == null ? "n/a" : (x * 100).toFixed(1) + "%");
+const fmtS = (x) => (x == null ? "none" : x.toFixed(1) + "s");
+
+/* ---------------------------------------------------------------- scores */
+function tone(score, invert) {
+  const good = invert ? 100 - score : score;
+  return good >= 70 ? "var(--good)" : good >= 45 ? "var(--warn)" : "var(--bad)";
+}
+function scoreCell(label, value, unit, pctFill, color) {
+  return h("div", { class: "score" },
+    h("div", { class: "k" }, label),
+    h("div", { class: "v" }, value, unit ? h("small", {}, " " + unit) : null),
+    h("div", { class: "meter" }, h("i", { style: `width:${Math.max(2, pctFill)}%;background:${color}` })));
+}
+function renderScores(s) {
+  const ttfcTxt = s.time_to_first_conflict_s == null ? "none" : s.time_to_first_conflict_s.toFixed(1);
+  return h("div", { class: "scores" },
+    scoreCell("Hook strength", s.hook_strength, "/100", s.hook_strength, tone(s.hook_strength)),
+    scoreCell("First conflict", ttfcTxt, s.time_to_first_conflict_s == null ? "" : "sec", s.ttfc_score, tone(s.ttfc_score)),
+    scoreCell("Emotional pacing", s.pacing, "/100", s.pacing, tone(s.pacing)),
+    scoreCell("Cliffhanger", s.cliffhanger, "/100", s.cliffhanger, tone(s.cliffhanger)),
+    scoreCell("Drop-off risk", s.dropoff_risk, "/100", s.dropoff_risk, tone(s.dropoff_risk, true)));
+}
+
+/* ---------------------------------------------------------------- ribbon */
+function renderRibbon(a) {
+  const W = 900, H = 178, padL = 10, padR = 10, top = 28, base = 120;
+  const dur = Math.max(a.duration_s || 0, 5);
+  const x = (t) => padL + (t / dur) * (W - padL - padR);
+  const root = svg("svg", { viewBox: `0 0 ${W} ${H}`, class: "ribbon", role: "img",
+    "aria-label": "Episode timeline showing dramatic intensity and drop-off risk over time" });
+
+  // hook zone
+  root.append(svg("rect", { x: x(0), y: top - 14, width: x(Math.min(5, dur)) - x(0), height: base - top + 14, fill: "var(--hot-soft)" }));
+  root.append(svg("text", { x: x(0) + 4, y: top - 3 }, "hook · first 5s"));
+
+  // risk heat band
+  (a.risk_curve || []).forEach((r) => {
+    const w = x(Math.min(r.t + 5, dur)) - x(r.t);
+    root.append(svg("rect", { x: x(r.t), y: base + 10, width: Math.max(1, w - 1), height: 10, fill: "var(--bad)", opacity: (0.12 + r.risk * 0.88).toFixed(2) }));
+  });
+  root.append(svg("text", { x: padL, y: base + 42 }, "drop-off risk (darker = riskier)"));
+
+  // intensity bars
+  const bw = Math.max(5, (5 / dur) * (W - padL - padR) - 2);
+  (a.beats || []).forEach((b) => {
+    const hgt = Math.max(2, b.intensity * (base - top));
+    const bar = svg("rect", { x: x(b.t_s), y: base - hgt, width: Math.max(2, Math.min(bw, W - padR - x(b.t_s))), height: hgt, fill: "var(--ink)", rx: 1 });
+    bar.append(svg("title", {}, `${b.t_s.toFixed(0)}s${b.label ? " · " + b.label : ""} · intensity ${(b.intensity * 100).toFixed(0)}%`));
+    root.append(bar);
+  });
+  root.append(svg("line", { x1: padL, x2: W - padR, y1: base, y2: base, stroke: "var(--line)" }));
+
+  // flagged zones
+  (a.risk_zones || []).forEach((z) => {
+    const r = svg("rect", { x: x(z.start_s), y: base + 24, width: Math.max(3, x(Math.min(z.end_s, dur)) - x(z.start_s)), height: 4,
+      fill: z.severity === "high" ? "var(--bad)" : "var(--warn)" });
+    r.append(svg("title", {}, `${z.start_s}–${z.end_s}s: ${z.reason}`));
+    root.append(r);
+  });
+
+  // first conflict marker
+  const t = a.scores.time_to_first_conflict_s;
+  if (t != null && t <= dur) {
+    root.append(svg("line", { x1: x(t), x2: x(t), y1: top - 14, y2: base, stroke: "var(--hot)", "stroke-width": 2, "stroke-dasharray": "4 3" }));
+    const left = x(t) > W * 0.7;
+    const lab = svg("text", { x: x(t) + (left ? -5 : 5), y: top - 3, "text-anchor": left ? "end" : "start", style: "fill:var(--hot)" }, `first conflict ${t.toFixed(1)}s`);
+    root.append(lab);
+  }
+  // ending marker
+  root.append(svg("text", { x: W - padR, y: H - 6, "text-anchor": "end" }, `cliffhanger · ${a.cliffhanger_type || "n/a"}   |   ${dur.toFixed(0)}s${a.timeline_estimated ? " (estimated)" : ""}`));
+  return root;
+}
+
+/* ---------------------------------------------------------------- results */
+function renderVersion(v) {
+  current = v;
+  const a = v.analysis;
+  const out = $("results");
+  out.replaceChildren();
+
+  (a.warnings || []).forEach((w) => out.append(h("p", { class: "warn" }, w)));
+  (a.flags || []).forEach((w) => out.append(h("p", { class: "warn" }, w)));
+
+  out.append(h("div", { class: "verdict" },
+    h("h2", {}, `${v.episode_title}, draft ${v.version_number}`),
+    h("span", { class: "tag" }, `${v.genre} · ${v.engine} engine${v.cached ? " · cached result" : ""}${v.has_video ? " · video" : ""}`)));
+  out.append(h("div", { class: "panel", style: "padding:0;border:0;background:none" }, renderScores(v.scores)));
+
+  const ribbonSec = h("div", { class: "sec" }, h("h3", {}, "Timeline"),
+    h("p", { class: "sub" }, "Bars show dramatic intensity. The band underneath is modeled drop-off risk; uncalibrated, so treat it as relative, not as a retention forecast."),
+    renderRibbon(a));
+  out.append(ribbonSec);
+
+  if (a.hook_rationale || a.conflict_description || a.cliffhanger_rationale) {
+    out.append(h("div", { class: "sec" }, h("h3", {}, "What the audit found"),
+      a.hook_rationale ? h("p", {}, h("strong", {}, "Hook: "), a.hook_rationale) : null,
+      a.conflict_description ? h("p", {}, h("strong", {}, "First conflict: "), a.conflict_description) : null,
+      a.cliffhanger_rationale ? h("p", {}, h("strong", {}, "Ending: "), a.cliffhanger_rationale) : null));
+  }
+
+  if ((a.top_fixes || []).length) {
+    out.append(h("div", { class: "sec" }, h("h3", {}, "Fix first"),
+      h("ul", { class: "fixes" }, a.top_fixes.map((f) => h("li", {}, f)))));
+  }
+  if ((a.risk_zones || []).length) {
+    out.append(h("div", { class: "sec" }, h("h3", {}, "Where viewers leave"),
+      h("div", { class: "panel", style: "padding:6px 16px" }, a.risk_zones.map((z) =>
+        h("div", { class: "zone" },
+          h("div", { class: "t" }, `${z.start_s}–${z.end_s}s`),
+          h("div", {}, h("span", { class: `sev ${z.severity}` }, z.severity + " risk"), "  ", z.reason),
+          z.fix ? h("div", { class: "fix" }, "Fix: " + z.fix) : null)))));
+  }
+
+  out.append(h("div", { class: "sec" }, h("h3", {}, "Three hook rewrites to test"),
+    h("p", { class: "sub" }, "Each pulls a different lever so the A/B test tells you which one matters."),
+    h("div", { class: "rewrites" }, v.variants.map((x) =>
+      h("article", { class: "rw" },
+        h("h4", {}, h("span", {}, x.label), x.angle),
+        h("pre", {}, x.text),
+        h("p", {}, x.rationale),
+        h("p", { class: "m" }, "Hypothesis: " + x.hypothesis),
+        h("p", { class: "m" }, "Primary metric: " + x.primary_metric),
+        h("div", {}, h("button", { class: "btn ghost", type: "button", onclick: (e) => {
+          navigator.clipboard.writeText(x.text).then(() => { e.target.textContent = "Copied"; setTimeout(() => (e.target.textContent = "Copy script"), 1500); });
+        } }, "Copy script")))))));
+
+  out.append(h("div", { class: "sec", id: "ab" }, h("h3", {}, "A/B test"),
+    h("div", { class: "panel", id: "abbody" }, h("button", { class: "btn", type: "button", onclick: startExperiment }, "Start test: original vs A, B, C"))));
+  experiment = null;
+}
+
+/* ---------------------------------------------------------------- experiments */
+async function startExperiment() {
+  try { experiment = await api(`/api/versions/${current.id}/experiments`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }); }
+  catch (e) { return alert(e.message); }
+  await renderExperiment();
+}
+async function renderExperiment() {
+  const res = await api(`/api/experiments/${experiment.id}/results`);
+  const inputs = {};
+  const body = $("abbody");
+  body.replaceChildren(
+    h("p", { style: "margin:0 0 8px" }, h("strong", {}, experiment.name), ` · metric: ${experiment.metric}`),
+    h("table", {},
+      h("thead", {}, h("tr", {}, ["Arm", "Impressions", "Conversions", "Rate (95% CI)", "Lift", "p (adj.)", "P(best)", "Add data"].map((c) => h("th", {}, c)))),
+      h("tbody", {}, res.arms.map((a) => {
+        const imp = h("input", { type: "number", min: 0, placeholder: "+ imp", "aria-label": `Add impressions for ${a.label}` });
+        const con = h("input", { type: "number", min: 0, placeholder: "+ conv", "aria-label": `Add conversions for ${a.label}` });
+        inputs[a.id] = [imp, con];
+        return h("tr", {},
+          h("td", {}, a.label), h("td", { class: "num" }, a.impressions.toLocaleString()), h("td", { class: "num" }, a.conversions.toLocaleString()),
+          h("td", { class: "num" }, a.rate == null ? "n/a" : `${pct(a.rate)} (${pct(a.ci_low)} – ${pct(a.ci_high)})`),
+          h("td", { class: "num" }, a.is_control ? "baseline" : a.lift_vs_control == null ? "n/a" : (a.lift_vs_control >= 0 ? "+" : "") + (a.lift_vs_control * 100).toFixed(1) + "%"),
+          h("td", { class: "num" }, a.p_value_adj == null ? "n/a" : a.p_value_adj < 0.001 ? "<0.001" : a.p_value_adj.toFixed(3)),
+          h("td", { class: "num" }, (a.prob_best * 100).toFixed(1) + "%"),
+          h("td", {}, h("div", { style: "display:flex;gap:6px" }, imp, con)));
+      }))),
+    h("div", { class: "row" }, h("button", { class: "btn", type: "button", onclick: async (e) => {
+      const events = [];
+      for (const [id, [i, c]] of Object.entries(inputs)) {
+        const imp = parseInt(i.value || "0", 10), conv = parseInt(c.value || "0", 10);
+        if (imp || conv) events.push({ arm_id: Number(id), impressions: imp || 0, conversions: conv || 0 });
+      }
+      if (!events.length) return;
+      e.target.disabled = true;
+      try { await api(`/api/experiments/${experiment.id}/events`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ events }) }); await renderExperiment(); }
+      catch (err) { alert(err.message); e.target.disabled = false; }
+    } }, "Log results")),
+    h("p", { class: `status ${res.status}` },
+      res.status === "winner" ? `Winner: ${res.arms.find((a) => a.id === res.winner_arm_id).label}. P(best) ≥ 95% and Bonferroni-adjusted p < 0.05.`
+      : res.status === "inconclusive" ? "Inconclusive: no arm clears both P(best) ≥ 95% and adjusted p < 0.05. Keep collecting data."
+      : `Not enough data yet: every arm needs at least ${res.min_impressions_per_arm.toLocaleString()} impressions.`));
+}
+
+/* ---------------------------------------------------------------- history + form */
+async function loadEpisodes(selectId) {
+  const eps = await api("/api/episodes");
+  const sel = $("episode");
+  sel.replaceChildren(h("option", { value: "" }, "New episode"), ...eps.map((e) => h("option", { value: e.id, "data-title": e.title, "data-genre": e.genre }, `${e.title} (${e.versions} draft${e.versions === 1 ? "" : "s"})`)));
+  if (selectId) sel.value = String(selectId);
+}
+async function loadHistory(episodeId) {
+  const vs = await api(`/api/episodes/${episodeId}/versions`);
+  $("history").hidden = false;
+  $("versions").replaceChildren(...vs.map((v, i) => {
+    const prev = vs[i - 1];
+    const d = prev ? v.scores.hook_strength - prev.scores.hook_strength : null;
+    return h("div", { class: "ver" },
+      h("button", { type: "button", onclick: async () => renderVersion(await api(`/api/versions/${v.id}`)) }, `Draft ${v.version_number}`),
+      h("span", {}, `hook ${v.scores.hook_strength} · risk ${v.scores.dropoff_risk}`),
+      d == null ? h("span", { class: "d" }, "first") : h("span", { class: `d ${d >= 0 ? "up" : "down"}` }, (d >= 0 ? "+" : "") + d));
+  }));
+}
+$("episode").addEventListener("change", () => {
+  const o = $("episode").selectedOptions[0];
+  if (o && o.value) { $("title").value = o.dataset.title; $("genre").value = o.dataset.genre; loadHistory(o.value); }
+  else $("history").hidden = true;
+});
+$("form").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  const err = $("error"); err.hidden = true;
+  const fd = new FormData();
+  fd.append("title", $("title").value.trim());
+  fd.append("genre", $("genre").value);
+  if ($("episode").value) fd.append("episode_id", $("episode").value);
+  if ($("script_text").value.trim()) fd.append("script_text", $("script_text").value);
+  if ($("script").files[0]) fd.append("script", $("script").files[0]);
+  if ($("video").files[0]) fd.append("video", $("video").files[0]);
+  if ($("force").checked) fd.append("force", "true");
+  const btn = $("go"); btn.disabled = true; btn.textContent = "Analyzing…";
+  try {
+    const v = await api("/api/analyze", { method: "POST", body: fd });
+    renderVersion(v);
+    await loadEpisodes(v.episode_id);
+    await loadHistory(v.episode_id);
+  } catch (e) { err.textContent = e.message; err.hidden = false; }
+  finally { btn.disabled = false; btn.textContent = "Analyze"; }
+});
+$("ss_go").addEventListener("click", async () => {
+  try {
+    const r = await api(`/api/stats/sample-size?baseline=${$("ss_base").value}&relative_mde=${$("ss_mde").value}`);
+    $("ss_out").textContent = `About ${r.per_arm.toLocaleString()} impressions per arm (${(r.per_arm * 4).toLocaleString()} for original + 3 variants).`;
+  } catch (e) { $("ss_out").textContent = e.message; }
+});
+api("/api/health").then((h2) => {
+  $("engine").textContent = h2.llm_enabled ? `Multimodal LLM on (${h2.model})` : "Offline rule-based engine (set ANTHROPIC_API_KEY for the multimodal LLM)";
+}).catch(() => {});
+loadEpisodes().catch(() => {});
+</script>
+</body>
+</html>
